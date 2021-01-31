@@ -20,8 +20,9 @@ public class TouchInput : MonoBehaviour
     new public Camera camera;
 
     private List<Vector2> path;
-
-    private int maxPointsInPath = 20;
+    public Text GUI_Text;
+    public CanvasRenderer GUI_Text_Container;
+    private List<GameObject> selection = new List<GameObject>();
 
     // Start is called before the first frame update
     void Start()
@@ -95,21 +96,45 @@ public class TouchInput : MonoBehaviour
 
     protected void selectPoints() {
         recalculatePointPos();
-        List<GameObject> points = new List<GameObject>();
-        for(int i = 0; i < pointsPos.Count; i++) {
-            points.Add(pointsPos[i].Item1);
+        if (path.Count <= 2) { // Select one single point
+            // We only look at the first point as the two positions should be very close
+            Ray ray = camera.ScreenPointToRay(new Vector3(path[0].x, path[0].y));
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit)) { // If it hit something
+                if (isSelecting) {
+                    selection.Add(hit.collider.gameObject);
+                } else {
+                    selection.Remove(hit.collider.gameObject);
+                    hit.collider.gameObject.GetComponent<PlottedBalls>().Selected = false;
+                }
+            }
+        } else { // Select area
+            List<GameObject> points = new List<GameObject>();
+            for(int i = 0; i < pointsPos.Count; i++) {
+                points.Add(pointsPos[i].Item1);
+            }
+            if (isSelecting) {
+                selection.AddRange(getPointsInPolygon(points, this.path));
+            } else {
+                foreach(GameObject go in getPointsInPolygon(points, this.path)) {
+                    selection.Remove(go);
+                }
+            }
         }
-        List<GameObject> selection = getPointsInPolygon(points, this.path);
+        removeDuplicateSelections();
+
         for(int i = 0; i < selection.Count; i++) {
-            Color col = Color.HSVToRGB((IsSelecting ? 0.0f : 0.5f), 1.0f, 1.0f);
-            selection[i].GetComponent<Renderer>().material.color = col;
+            selection[i].GetComponent<PlottedBalls>().Selected = true;
         }
+
+        UpdateGUI();
     }
     protected List<GameObject> getPointsInPolygon(List<GameObject> plot, List<Vector2> polygon) {
         List<GameObject> selectedPoints = new List<GameObject>();
         for(int i = 0; i < plot.Count; i++) {
             if (checkPointInsidePolygon(polygon, camera.WorldToScreenPoint(plot[i].transform.position))) {
                 selectedPoints.Add(plot[i]);
+                plot[i].GetComponent<PlottedBalls>().Selected = isSelecting;
             }
         }
         return selectedPoints;
@@ -126,5 +151,37 @@ public class TouchInput : MonoBehaviour
             sumAngle += Vector2.SignedAngle(p1, p2);
         }
         return Math.Abs(sumAngle) >= 180;
+    }
+
+    public void UpdateGUI() {
+        string text = "";
+        if (selection.Count == 1) {
+            text = "1 object selected:";
+            PlottedBalls uniqueObject = selection[0].GetComponent<PlottedBalls>();
+            Dictionary<string, object>.KeyCollection keys = uniqueObject.Data.Keys;
+            foreach (string key in keys) {
+                text += "\n" + key + ": " + uniqueObject.Data[key];
+            }
+        } else if (selection.Count > 1) {
+            text = selection.Count + " objects selected:";
+            text += Test.getDataFromBallsAsText(selection);
+
+        } else {
+            text = "No object selected";
+        }
+        
+        GUI_Text.text = text;
+
+        if (selection.Count == 0) {
+            GUI_Text_Container.gameObject.SetActive(false);
+        } else {
+            GUI_Text_Container.gameObject.SetActive(true);
+        }
+    }
+
+    private void removeDuplicateSelections() {
+        List<GameObject> noDuplicate = new List<GameObject>(new HashSet<GameObject>(selection));
+        selection.Clear();
+        selection.AddRange(noDuplicate);
     }
 }

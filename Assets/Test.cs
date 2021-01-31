@@ -18,9 +18,9 @@ public class Test : MonoBehaviour
     public int columnZ = 3;
     
     // Full column names
-    public string xName;
-    public string yName;
-    public string zName;
+    private string xName;
+    private string yName;
+    private string zName;
 
     // Scale of the scatter plot
     public float plotScale = 10;
@@ -64,50 +64,22 @@ public class Test : MonoBehaviour
         float yMin = FindMinValue(pointList, yName);
         float zMin = FindMinValue(pointList, zName);
 
+        float x = 0.0f;
+        float y = 0.0f;
+        float z = 0.0f;
+
         // Loop through Pointlist
         for (var i = 0; i < pointList.Count; i++)
         {
-
-            float x = 0.0f;
-            float y = 0.0f;
-            float z = 0.0f;
-
-
-            //Debug variable types
-            //Debug.Log("x value as type " + (pointList[i][xName]).GetType().Name + " value "+ pointList[i][xName]);
-            //Debug.Log("y value as type " + (pointList[i][yName]).GetType().Name + " value "+ pointList[i][yName]);
-            //Debug.Log("z value as type " + (pointList[i][zName]).GetType().Name + " value "+ pointList[i][zName]);
-            
 
             string v1 = pointList[i][xName].ToString().Replace(".", ",");
             string v2 = pointList[i][yName].ToString().Replace(".", ",");
             string v3 = pointList[i][zName].ToString().Replace(".", ",");
 
-
-            // Get value in poinList at ith "row", in "column" Name
-            
-            // OLD VALUE => CAST PROBLEM
-            //x = System.Convert.ToSingle(pointList[i][xName]);
-            //y = System.Convert.ToSingle(pointList[i][yName]);
-            //z = System.Convert.ToSingle(pointList[i][zName]);
-
-            // CORRECT VALUES
-            // x = System.Convert.ToSingle(v1);
-            // y = System.Convert.ToSingle(v2);
-            // z = System.Convert.ToSingle(v3);
-
             // Get value in poinList at ith "row", in "column" Name, normalize
             x = (System.Convert.ToSingle(v1) - xMin) / (xMax - xMin);
             y = (System.Convert.ToSingle(v2) - yMin) / (yMax - yMin);
             z = (System.Convert.ToSingle(v3) - zMin) / (zMax - zMin);
-
-            // Debug cast values
-            //Debug.Log("x = " + x + " y = "+y+" z = "+z);
-            //Debug.Log("x type = " + x.GetType().Name + " y type = "+y.GetType().Name+" z type = "+z.GetType().Name);
-        
-            
-            //instantiate the prefab with coordinates defined above
-            //Instantiate(PointPrefab, new Vector3(x, y, z), Quaternion.identity);
 
             // Instantiate as gameobject variable so that it can be manipulated within loop
             //GameObject dataPoint = Instantiate(PointPrefab, new Vector3(x, y, z), Quaternion.identity);
@@ -125,6 +97,11 @@ public class Test : MonoBehaviour
 
             // Gets material color and sets it to a new RGBA color we define
             dataPoint.GetComponent<Renderer>().material.color = new Color(x,y,z, 1.0f);
+
+            PlottedBalls pointData = dataPoint.GetComponent<PlottedBalls>();
+            for(int data_id = 0; data_id < columnList.Count; data_id ++) {
+                pointData.setData(columnList[data_id], pointList[i][columnList[data_id]]);
+            }
     
         }
 
@@ -186,6 +163,65 @@ public class Test : MonoBehaviour
         }
 
         return minValue;
+   }
+
+   static public Dictionary<string, List<object>> getDataFromBalls(List<GameObject> balls) {
+       if (balls.Count == 0) {
+           return null;
+       }
+       Dictionary<string, List<object>> allData = new Dictionary<string, List<object>>();
+
+       Dictionary<string, object>.KeyCollection keys = balls[0].GetComponent<PlottedBalls>().Data.Keys;
+       foreach(string key in keys) {
+           if (key == "") {
+               continue;
+           }
+            allData[key] = new List<object>();
+           foreach(GameObject obj in balls) {
+               PlottedBalls pb = obj.GetComponent<PlottedBalls>();
+               string s_val = pb.Data[key].ToString().Replace(".", ",");
+               float val;
+               if (float.TryParse(s_val, out val)) {
+                   if (allData[key].Count == 0) {
+                       allData[key].Add(val); // Mean
+                       allData[key].Add(val); // Min
+                       allData[key].Add(val); // Max
+                   } else {
+                       print(allData[key].Count);
+                       allData[key][0] = (float)allData[key][0] + val; // Mean
+                       allData[key][1] = Mathf.Min((float)allData[key][1], val); // Min
+                       allData[key][2] = Mathf.Max((float)allData[key][2], val); // Max
+                   }
+               } else {
+                   allData[key].Add(s_val);
+               }
+           }
+           if (allData[key].Count > 0 && float.TryParse(allData[key][0].ToString(), out _)) {
+               allData[key][0] = (float)allData[key][0] / (float)balls.Count; // Calculate real mean
+           }
+       }
+
+       return allData;
+   }
+   static public string getDataFromBallsAsText(List<GameObject> balls) {
+       string text = "";
+       Dictionary<string, List<object>> data = getDataFromBalls(balls);
+       Dictionary<string, List<object>>.KeyCollection keys = data.Keys;
+
+       foreach(string key in keys) {
+           if(data[key].Count > 0) {
+               if (float.TryParse(data[key][0].ToString().Replace(".", ","), out _)) {
+                    text += string.Format("\n\n{0}: \nMean = {1:0.00} Min = {2:0.00} Max = {3:0.00}", key, data[key][0], data[key][1], data[key][2]);
+               } else {
+                   if (data[key].Count <= 3) {
+                       text += "\n\n" + key + ": " + string.Join(", ", data[key]);
+                   } else {
+                       text += "\n\n" + key + ": " + data[key].Count + " different values";
+                   }
+               }
+           }
+       }
+       return text;
    }
 
 }

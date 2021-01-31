@@ -12,8 +12,9 @@ GameObject:
   - component: {fileID: 317810501252461659}
   - component: {fileID: 1755126543468189422}
   - component: {fileID: 240308573219420930}
+  - component: {fileID: 6808142837222626938}
   m_Layer: 0
-  m_Name: Sphere
+  m_Name: DataBall
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -93,3 +94,17 @@ SphereCollider:
   serializedVersion: 2
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &6808142837222626938
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8043082474941705445}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f76f7d19db0aca468eb7e471dbd9f27, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  selectedColor: {r: 1, g: 0, b: 0, a: 1}
+  deselectedColor: {r: 0.4528302, g: 0.22000714, b: 0.22000714, a: 1}
