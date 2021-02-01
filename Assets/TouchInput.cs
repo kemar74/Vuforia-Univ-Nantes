@@ -20,11 +20,20 @@ public class TouchInput : MonoBehaviour
     private List<Vector2> currentSelectionPath; // Path drawn by the finger to select points
     public Text GUI_Text; // Text that shows statistics
     public CanvasRenderer GUI_Text_Container; // The container of the text, so we can hide it when nothing has to be shown
-    private List<GameObject> selection = new List<GameObject>(); // All the points that are selected
+    private List<GameObject> selection {get {return history[historyIndex];} set {updateHistory(value);}}//= new List<GameObject>(); // All the points that are selected
+
+    private List<List<GameObject>> history = new List<List<GameObject>>(); // History of selections made to undo or redo
+    private int historyIndex = -1;
+
+    public Button btnUndo; // Button to undo last selection
+    public Button btnRedo; // Button to redo last selection
+    public Button btnIncompleteShapeError; // Button to click if the program thinks you did an incomplete shape on selection but you want to keep it
+    public CanvasRenderer incompleteShapeErrorContainer; // The container with the error message, so that we can hide it when we dont need it
 
     // Start is called before the first frame update
     void Start()
     {
+        selection = new List<GameObject>();
         // Initialize all the variables
         currentSelectionPath = new List<Vector2>();
         camera = GameObject.FindObjectsOfType<Camera>()[0]; // We take the camera from the scene. It's not the best way to do, but it works
@@ -35,6 +44,21 @@ public class TouchInput : MonoBehaviour
         btnDeselect.interactable = true; // Enable the deselection button
         btnSelect.onClick.AddListener(delegate{setSelecting(true);}); // When one of the button is clicked,
         btnDeselect.onClick.AddListener(delegate{setSelecting(false);}); // we change the value of "isSelected"
+
+        if (btnUndo != null) { // If a button is specified for undo
+            btnUndo.onClick.AddListener(undo); // Add the action if it is clicked
+            btnUndo.transform.parent.gameObject.GetComponent<Hideable>().Hide(); // Hide the buttons at start
+        }
+        if (btnRedo != null) { // If a button is specified for redo
+            btnRedo.onClick.AddListener(redo); // Add the action if it is clicked
+            btnRedo.transform.parent.gameObject.GetComponent<Hideable>().Hide(); // Hide the buttons at start
+        }
+
+        if (btnIncompleteShapeError != null) {
+            btnIncompleteShapeError.onClick.AddListener(redo); // For now, we just cancel the "incomplete shape" error
+            btnIncompleteShapeError.onClick.AddListener(hideIncompleteShapeMessage);
+
+        }
     }
 
     // Change the isSelecting value and enable/disable the buttons
@@ -46,6 +70,7 @@ public class TouchInput : MonoBehaviour
 
     // Function to get the position of each points on the screen
     private void recalculatePointPos() {
+        pointsPos.Clear();
         if (plotParent != null) {
             for (int i = 0; i < plotParent.transform.childCount; i++) { // We have tuples <point, position>
                 pointsPos.Add(new Tuple<GameObject, Vector2>(plotParent.transform.GetChild(i).gameObject, camera.WorldToScreenPoint(plotParent.transform.GetChild(i).gameObject.transform.position)));
@@ -63,6 +88,7 @@ public class TouchInput : MonoBehaviour
         // If smartphone user
         foreach(Touch touch in Input.touches) { // One touch = One finger
             if(touch.phase == TouchPhase.Began) { // If it's the begining of a new path, empty the path
+                hideIncompleteShapeMessage();
                 currentSelectionPath.Clear();
             }
             if (currentSelectionPath.Count > 0) { // Store the new position if the finger is not static
@@ -79,6 +105,7 @@ public class TouchInput : MonoBehaviour
 
         // PC user (exactly the same process as the smartphone users)
         if (Input.GetMouseButtonDown(0)) {
+            hideIncompleteShapeMessage();
             currentSelectionPath.Clear();
         }
         if (Input.GetMouseButton(0)) {
@@ -101,6 +128,7 @@ public class TouchInput : MonoBehaviour
     // }
 
     protected void selectPoints() {
+        List<GameObject> currentSelection = new List<GameObject>(selection);
         recalculatePointPos(); // Calculate the position of all the points
         if (currentSelectionPath.Count <= 2) { // Select one single point if there is only one stroke
             // We only look at the first point as the two positions should be very close
@@ -109,9 +137,9 @@ public class TouchInput : MonoBehaviour
             // The raycast is a virtual line that is drawn and that checks if it collides with a GameObject
             if (Physics.Raycast(ray, out hit)) { // If it hit something
                 if (isSelecting) {
-                    selection.Add(hit.collider.gameObject); // We add this object to the selection
+                    currentSelection.Add(hit.collider.gameObject); // We add this object to the selection
                 } else {
-                    selection.Remove(hit.collider.gameObject); // Or we remove it
+                    currentSelection.Remove(hit.collider.gameObject); // Or we remove it
                     hit.collider.gameObject.GetComponent<PlottedBalls>().Selected = false; // We set the state of the ball to "deselected"
                 }
             }
@@ -121,32 +149,45 @@ public class TouchInput : MonoBehaviour
                 points.Add(pointsPos[i].Item1);
             }
             if (isSelecting) {
-                selection.AddRange(getPointsInPolygon(points, this.currentSelectionPath)); // Check all the points in the region
+                currentSelection.AddRange(getPointsInPolygon(points, this.currentSelectionPath)); // Check all the points in the region
                 // and add them to the selection
             } else {
                 foreach(GameObject go in getPointsInPolygon(points, this.currentSelectionPath)) {
-                    selection.Remove(go); // Same process, but to remove them
+                    currentSelection.Remove(go); // Same process, but to remove them
                 }
             }
         }
-        removeDuplicateSelections(); // We don't want duplicates in the list of selected points
+        if (selection.Count != currentSelection.Count) {
+            selection = removeDuplicateSelections(currentSelection); // We don't want duplicates in the list of selected points
+            updateSelectionDeselection();
+        }
 
-        for(int i = 0; i < selection.Count; i++) {
-            selection[i].GetComponent<PlottedBalls>().Selected = true; // Set the selected objects state to "selected"
+        if (!isShapeClosed(currentSelectionPath)) {
+            proposeIncompleteShapeSelection();
+        }
+    }
+
+    public void updateSelectionDeselection() {
+        for(int i = 0; i < pointsPos.Count; i++) {
+            if (selection.Contains(pointsPos[i].Item1)) {
+                pointsPos[i].Item1.GetComponent<PlottedBalls>().Selected = true;
+            } else {
+                pointsPos[i].Item1.GetComponent<PlottedBalls>().Selected = false;
+            }
         }
         UpdateGUI(); // Display statistics of the selected points
     }
 
     // For each point in the plot, check if it is in the region and return all the contained points
     protected List<GameObject> getPointsInPolygon(List<GameObject> plot, List<Vector2> polygon) {
-        List<GameObject> selectedPoints = new List<GameObject>(); // Start with an empty list
+        List<GameObject> containedPoints = new List<GameObject>(); // Start with an empty list
         for(int i = 0; i < plot.Count; i++) {   // Check each point is contained
             if (checkPointInsidePolygon(polygon, camera.WorldToScreenPoint(plot[i].transform.position))) {
-                selectedPoints.Add(plot[i]); // If yes, add them to the list of contained points
+                containedPoints.Add(plot[i]); // If yes, add them to the list of contained points
                 plot[i].GetComponent<PlottedBalls>().Selected = isSelecting; // This has to be changed later...
             }
         }
-        return selectedPoints; // Return the contained points
+        return containedPoints; // Return the contained points
     }
 
     // Check if a point is contained in a polygon
@@ -185,9 +226,9 @@ public class TouchInput : MonoBehaviour
         GUI_Text.text = text; // Set the displayed text
 
         if (selection.Count == 0) { // Remove the text completely if there is nothing to display
-            GUI_Text_Container.gameObject.SetActive(false);
+            GUI_Text_Container.gameObject.GetComponent<Hideable>().Hide();
         } else {
-            GUI_Text_Container.gameObject.SetActive(true);
+            GUI_Text_Container.gameObject.GetComponent<Hideable>().Show();
         }
     }
 
@@ -200,9 +241,81 @@ public class TouchInput : MonoBehaviour
     }
 
     // Remove duplicate points in the selected list
-    private void removeDuplicateSelections() {
-        List<GameObject> noDuplicate = new List<GameObject>(new HashSet<GameObject>(selection));
-        selection.Clear();
-        selection.AddRange(noDuplicate);
+    private List<GameObject> removeDuplicateSelections(List<GameObject> sel) {
+        return new List<GameObject>(new HashSet<GameObject>(sel));
+    }
+
+    // We want to change an element in the history, and prevent "redo"
+    private void updateHistory(List<GameObject> newSelection) {
+        historyIndex++; // Increase the history index
+        if (historyIndex >= history.Count) { // If it's a new element, add it
+            history.Add(newSelection);
+        } else {
+            history[historyIndex] = newSelection; // Otherwise modify the list
+            history.RemoveRange(historyIndex+1, history.Count - historyIndex - 1); // And remove future to avoid redos
+        }
+        updateUndoRedoButtons();
+    }
+
+    public void undo() {
+        if (historyIndex > 0) {
+            historyIndex--;
+        }
+        updateSelectionDeselection();
+        updateUndoRedoButtons();
+    }
+    public void redo() {
+        if (historyIndex < history.Count - 1) {
+            historyIndex++;
+        }
+        updateSelectionDeselection();
+        updateUndoRedoButtons();
+    }
+
+    private void updateUndoRedoButtons() {
+        bool hideButtons = true;
+        if (btnUndo != null) {
+            btnUndo.interactable = historyIndex > 0;
+            hideButtons &= btnUndo.interactable == false;
+        }
+        if (btnRedo != null) {
+            btnRedo.interactable = historyIndex < history.Count-1;
+            hideButtons &= btnRedo.interactable == false;
+        }
+        btnUndo.transform.parent.GetComponent<Hideable>().Hidden = hideButtons;
+    }
+
+    // Check if a path looks like a close region.
+    // Condition used:
+    // If the last point is closer than Ri * D, it's closed
+    // With D = max distance from the start to any other point
+    // and Ri = Incomplete Rate a value between 0 (start and end must be the same point) and 1 (no verification)
+    private bool isShapeClosed(List<Vector2> polygon) {
+        float incompleteRate = 5/6.0f;
+
+        float maxDistanceToStart = 0.0f;
+        for (int i = 0; i < polygon.Count; i++) {
+            maxDistanceToStart = Mathf.Max(maxDistanceToStart, (polygon[0] - polygon[i]).magnitude);
+        }
+        float distanceFromFirstToLast = (polygon[0] - polygon[polygon.Count - 1]).magnitude;
+
+        if (distanceFromFirstToLast > incompleteRate * maxDistanceToStart) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    public void proposeIncompleteShapeSelection() {
+        undo();
+        if (incompleteShapeErrorContainer != null) {
+            incompleteShapeErrorContainer.GetComponent<Hideable>().Show();
+        }
+    }
+
+    public void hideIncompleteShapeMessage() {
+        if (incompleteShapeErrorContainer != null) {
+            incompleteShapeErrorContainer.GetComponent<Hideable>().Hide();
+        }
     }
 }

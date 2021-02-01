@@ -159,7 +159,6 @@ public class Plotter : MonoBehaviour
                        allData[key].Add(val); // Min
                        allData[key].Add(val); // Max
                    } else {
-                       print(allData[key].Count);
                        allData[key][0] = (float)allData[key][0] + val; // Mean
                        allData[key][1] = Mathf.Min((float)allData[key][1], val); // Min
                        allData[key][2] = Mathf.Max((float)allData[key][2], val); // Max
