@@ -62,8 +62,8 @@ public class TouchInput : MonoBehaviour
 
         }
         
-        line = GameObject.Instantiate(linePrefab, camera.transform);
-        line.transform.Translate(new Vector3(0, 0, GameObject.Find("BackgroundPlane").transform.localPosition.z), camera.transform);
+        // line = GameObject.Instantiate(linePrefab, camera.transform);
+        // line.transform.Translate(new Vector3(0, 0, GameObject.Find("BackgroundPlane").transform.localPosition.z), camera.transform);
     }
 
     // Change the isSelecting value and enable/disable the buttons
@@ -278,17 +278,14 @@ public class TouchInput : MonoBehaviour
 
     // Display the path the user is actually drawing (not working yet)
     public void DisplaySelectionPath() {
-        // Create a cylinder object, instanciate it at the position of a point
-        // Use the function transform.LookAt to point it to the next point
-        // Scale the cylinder to match the distance between the 2 points.
-        line.transform.position.Set(0, 0, GameObject.Find("BackgroundPlane").transform.position.z - 0.5f);
-        print(GameObject.Find("BackgroundPlane").transform.position.z);
-        line.GetComponent<LineRenderer>().positionCount = currentSelectionPath.Count;
-        List<Vector3> vec3pos = new List<Vector3>();
-        foreach(Vector2 pos in currentSelectionPath) {
-            vec3pos.Add((Vector3) pos);
-        }
-        line.GetComponent<LineRenderer>().SetPositions(vec3pos.ToArray());
+        // line.transform.position.Set(0, 0, GameObject.Find("BackgroundPlane").transform.position.z - 0.5f);
+        // print(GameObject.Find("BackgroundPlane").transform.position.z);
+        // line.GetComponent<LineRenderer>().positionCount = currentSelectionPath.Count;
+        // List<Vector3> vec3pos = new List<Vector3>();
+        // foreach(Vector2 pos in currentSelectionPath) {
+        //     vec3pos.Add((Vector3) pos);
+        // }
+        // line.GetComponent<LineRenderer>().SetPositions(vec3pos.ToArray());
     }
 
     // Remove duplicate points in the selected list

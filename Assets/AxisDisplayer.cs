@@ -25,6 +25,10 @@ public class AxisDisplayer : MonoBehaviour
     }
 
     public void changeAxisLabels(string xlabel, string ylabel, string zlabel) {
+        Xlabel = transform.Find("Xlabel").gameObject;
+        Ylabel = transform.Find("Ylabel").gameObject;
+        Zlabel = transform.Find("Zlabel").gameObject;
+
         Xlabel.GetComponent<TextMesh>().text = xlabel;
         Ylabel.GetComponent<TextMesh>().text = ylabel;
         Zlabel.GetComponent<TextMesh>().text = zlabel;
