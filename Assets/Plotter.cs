@@ -27,6 +27,7 @@ public class Plotter : MonoBehaviour
     public float ballScale = 0.1f; // Scale of each of the points
 
     public GameObject PointPrefab;
+    //public AxisDisplayer axis;
 
     // Start is called before the first frame update
     void Start()
@@ -88,7 +89,10 @@ public class Plotter : MonoBehaviour
     
         }
 
-
+        AxisDisplayer axis = gameObject.GetComponentInChildren<AxisDisplayer>(true);
+        if (axis != null) {
+            axis.changeAxisLabels(xName, yName, zName);
+        }
     }
 
     // Normalization functions : get minimum value + maximum value of a column

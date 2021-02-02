@@ -7,6 +7,8 @@ public class PlottedBalls : MonoBehaviour
 {
     protected bool selected = false; // is the point selected by the user?
     public bool Selected {get {return selected;} set {setSelected(value);} }
+    protected bool maybeSelected = false; // is the point in the selection drawing of the user?
+    public bool MaybeSelected {get {return maybeSelected;} set {setMaybeSelected(value);} }
     private MeshRenderer mesh; // The mesh used (a sphere)
 
     public Color selectedColor = Color.HSVToRGB(0.0f, 1.0f, 1.0f); // One color if the point is selected
@@ -29,11 +31,12 @@ public class PlottedBalls : MonoBehaviour
     // When we change the selection of this point, change its color
     void setSelected(bool newSelected) {
         selected = newSelected;
-        if (selected) {
-            mesh.material.color = selectedColor;
-        } else {
-            mesh.material.color = deselectedColor;
-        }
+        changeColor();
+    }
+    // When the point is possibly in the selection, change its color
+    void setMaybeSelected(bool newSelected) {
+        maybeSelected = newSelected;
+        changeColor();
     }
 
     // Adding data to the data object
@@ -42,6 +45,16 @@ public class PlottedBalls : MonoBehaviour
             Data[key] = value;
         } else {
             Data.Add(key, value);
+        }
+    }
+
+    protected void changeColor() {
+        if (MaybeSelected) {
+            mesh.material.color = maybeSelectedColor;
+        } else if (selected) {
+            mesh.material.color = selectedColor;
+        } else {
+            mesh.material.color = deselectedColor;
         }
     }
 }

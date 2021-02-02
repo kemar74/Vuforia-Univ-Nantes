@@ -108,3 +108,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   selectedColor: {r: 1, g: 0, b: 0, a: 1}
   deselectedColor: {r: 0.4528302, g: 0.22000714, b: 0.22000714, a: 1}
+  maybeSelectedColor: {r: 1, g: 0.90000004, b: 0, a: 1}

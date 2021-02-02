@@ -30,6 +30,8 @@ public class TouchInput : MonoBehaviour
     public Button btnIncompleteShapeError; // Button to click if the program thinks you did an incomplete shape on selection but you want to keep it
     public CanvasRenderer incompleteShapeErrorContainer; // The container with the error message, so that we can hide it when we dont need it
 
+    public GameObject linePrefab;
+    private GameObject line;
     // Start is called before the first frame update
     void Start()
     {
@@ -59,6 +61,9 @@ public class TouchInput : MonoBehaviour
             btnIncompleteShapeError.onClick.AddListener(hideIncompleteShapeMessage);
 
         }
+        
+        line = GameObject.Instantiate(linePrefab, camera.transform);
+        line.transform.Translate(new Vector3(0, 0, GameObject.Find("BackgroundPlane").transform.localPosition.z), camera.transform);
     }
 
     // Change the isSelecting value and enable/disable the buttons
@@ -73,7 +78,9 @@ public class TouchInput : MonoBehaviour
         pointsPos.Clear();
         if (plotParent != null) {
             for (int i = 0; i < plotParent.transform.childCount; i++) { // We have tuples <point, position>
-                pointsPos.Add(new Tuple<GameObject, Vector2>(plotParent.transform.GetChild(i).gameObject, camera.WorldToScreenPoint(plotParent.transform.GetChild(i).gameObject.transform.position)));
+                if(plotParent.transform.GetChild(i).gameObject.GetComponent<PlottedBalls>() != null) {
+                    pointsPos.Add(new Tuple<GameObject, Vector2>(plotParent.transform.GetChild(i).gameObject, camera.WorldToScreenPoint(plotParent.transform.GetChild(i).gameObject.transform.position)));
+                }
             }
         }
     }
@@ -85,6 +92,9 @@ public class TouchInput : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (currentSelectionPath.Count > 0) {
+            DisplayMaybeSelectedPoints();
+        }
         // If smartphone user
         foreach(Touch touch in Input.touches) { // One touch = One finger
             if(touch.phase == TouchPhase.Began) { // If it's the begining of a new path, empty the path
@@ -121,9 +131,28 @@ public class TouchInput : MonoBehaviour
         if (Input.GetMouseButtonUp(0)) {
             selectPoints();
         }
+
+        DisplaySelectionPath();
+    }
+
+    // During the draw of the user, highlight points that are in the area
+    protected void DisplayMaybeSelectedPoints() {
+        recalculatePointPos();
+        foreach(Tuple<GameObject, Vector2> elem in pointsPos) {
+            if (checkPointInsidePolygon(currentSelectionPath, elem.Item2)) { // If it's in the region, change the color
+                elem.Item1.GetComponent<PlottedBalls>().MaybeSelected = true;
+            } else {
+                elem.Item1.GetComponent<PlottedBalls>().MaybeSelected = false; // Otherwise, use normal color
+            }
+        }
     }
 
     // public void OnDrawGizmos() { // Not working yet
+    //     print("Gizmos");
+    //     DisplaySelectionPath();
+    // }
+    // public void OnPostRender() {
+    //     print("PostRender");
     //     DisplaySelectionPath();
     // }
 
@@ -136,11 +165,23 @@ public class TouchInput : MonoBehaviour
             RaycastHit hit;
             // The raycast is a virtual line that is drawn and that checks if it collides with a GameObject
             if (Physics.Raycast(ray, out hit)) { // If it hit something
-                if (isSelecting) {
-                    currentSelection.Add(hit.collider.gameObject); // We add this object to the selection
-                } else {
-                    currentSelection.Remove(hit.collider.gameObject); // Or we remove it
-                    hit.collider.gameObject.GetComponent<PlottedBalls>().Selected = false; // We set the state of the ball to "deselected"
+                if(hit.collider.gameObject.GetComponent<PlottedBalls>() != null) { // Check if the object is really a point
+                    // Either we change the selection of this point
+                    if (hit.collider.gameObject.GetComponent<PlottedBalls>().Selected == true) {
+                        currentSelection.Remove(hit.collider.gameObject);
+                    } else {
+                        currentSelection.Add(hit.collider.gameObject);
+                    }
+
+                    // Or we select/deselect depending on our mode
+                    /*
+                    if (isSelecting) {
+                        currentSelection.Add(hit.collider.gameObject); // We add this object to the selection
+                    } else {
+                        currentSelection.Remove(hit.collider.gameObject); // Or we remove it
+                        hit.collider.gameObject.GetComponent<PlottedBalls>().Selected = false; // We set the state of the ball to "deselected"
+                    }
+                    */
                 }
             }
         } else { // Select region
@@ -160,11 +201,13 @@ public class TouchInput : MonoBehaviour
         if (selection.Count != currentSelection.Count) {
             selection = removeDuplicateSelections(currentSelection); // We don't want duplicates in the list of selected points
             updateSelectionDeselection();
+            if(!isShapeClosed(currentSelectionPath)) {
+                proposeIncompleteShapeSelection();
+            }
         }
 
-        if (!isShapeClosed(currentSelectionPath)) {
-            proposeIncompleteShapeSelection();
-        }
+        currentSelectionPath.Clear(); // Free the path
+        DisplayMaybeSelectedPoints(); // This will just remove the "maybe selected" state to the points
     }
 
     public void updateSelectionDeselection() {
@@ -182,7 +225,8 @@ public class TouchInput : MonoBehaviour
     protected List<GameObject> getPointsInPolygon(List<GameObject> plot, List<Vector2> polygon) {
         List<GameObject> containedPoints = new List<GameObject>(); // Start with an empty list
         for(int i = 0; i < plot.Count; i++) {   // Check each point is contained
-            if (checkPointInsidePolygon(polygon, camera.WorldToScreenPoint(plot[i].transform.position))) {
+            if (plot[i].GetComponent<PlottedBalls>() != null &&  // Check if it's really a point
+                checkPointInsidePolygon(polygon, camera.WorldToScreenPoint(plot[i].transform.position))) {
                 containedPoints.Add(plot[i]); // If yes, add them to the list of contained points
                 plot[i].GetComponent<PlottedBalls>().Selected = isSelecting; // This has to be changed later...
             }
@@ -233,11 +277,18 @@ public class TouchInput : MonoBehaviour
     }
 
     // Display the path the user is actually drawing (not working yet)
-    protected void DisplaySelectionPath() {
-        Gizmos.color = Color.white;
-        for(int i = 0; i < currentSelectionPath.Count - 1; i++) {
-            Gizmos.DrawLine(currentSelectionPath[i], currentSelectionPath[i+1]);
+    public void DisplaySelectionPath() {
+        // Create a cylinder object, instanciate it at the position of a point
+        // Use the function transform.LookAt to point it to the next point
+        // Scale the cylinder to match the distance between the 2 points.
+        line.transform.position.Set(0, 0, GameObject.Find("BackgroundPlane").transform.position.z - 0.5f);
+        print(GameObject.Find("BackgroundPlane").transform.position.z);
+        line.GetComponent<LineRenderer>().positionCount = currentSelectionPath.Count;
+        List<Vector3> vec3pos = new List<Vector3>();
+        foreach(Vector2 pos in currentSelectionPath) {
+            vec3pos.Add((Vector3) pos);
         }
+        line.GetComponent<LineRenderer>().SetPositions(vec3pos.ToArray());
     }
 
     // Remove duplicate points in the selected list
@@ -306,13 +357,14 @@ public class TouchInput : MonoBehaviour
         }
     }
 
+    // Display a message explaining that the selection shape drawn is not closed enough
     public void proposeIncompleteShapeSelection() {
         undo();
         if (incompleteShapeErrorContainer != null) {
             incompleteShapeErrorContainer.GetComponent<Hideable>().Show();
         }
     }
-
+    // Hiding the message saying the selection shape is not closed enough
     public void hideIncompleteShapeMessage() {
         if (incompleteShapeErrorContainer != null) {
             incompleteShapeErrorContainer.GetComponent<Hideable>().Hide();
