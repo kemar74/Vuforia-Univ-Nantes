@@ -20,16 +20,16 @@ public class Hideable : MonoBehaviour
         show_pos = transform.position;
         switch (hide_type) {
             case HIDE_TYPE.HIDE_BOTTOM:
-                hide_pos = show_pos - new Vector3(0, my_rect.rect.height);
+                hide_pos = show_pos - new Vector3(0, my_rect.rect.height)*2;
                 break;
             case HIDE_TYPE.HIDE_TOP:
-                hide_pos = show_pos + new Vector3(0, my_rect.rect.height);
+                hide_pos = show_pos + new Vector3(0, my_rect.rect.height)*2;
                 break;
             case HIDE_TYPE.HIDE_LEFT:
-                hide_pos = show_pos - new Vector3(my_rect.rect.width, 0);
+                hide_pos = show_pos - new Vector3(my_rect.rect.width, 0)*2;
                 break;
             case HIDE_TYPE.HIDE_RIGHT:
-                hide_pos = show_pos + new Vector3(my_rect.rect.width, 0);
+                hide_pos = show_pos + new Vector3(my_rect.rect.width, 0)*2;
                 break;
         }
         translation_hide_to_show = show_pos - hide_pos;
