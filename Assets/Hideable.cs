@@ -43,14 +43,53 @@ public class Hideable : MonoBehaviour
     void Update()
     {
         if (hidden) {
-            if ((transform.position - hide_pos).magnitude > 10) {
+            if ((transform.position - hide_pos).sqrMagnitude > (translation_hide_to_show * Time.deltaTime/speed).sqrMagnitude) {
                 transform.Translate(-translation_hide_to_show * (Time.deltaTime / speed));
             }
         } else {
-            if ((transform.position - show_pos).magnitude > 10) {
+            if ((transform.position - show_pos).sqrMagnitude > (translation_hide_to_show * Time.deltaTime/speed).sqrMagnitude) {
                 transform.Translate(translation_hide_to_show * (Time.deltaTime / speed));
             }
         }
+        // bool mustHide = false;
+        // bool mustShow = false;
+        // if (hidden) {
+        //     switch (hide_type) {
+        //         case HIDE_TYPE.HIDE_BOTTOM:
+        //             mustHide = transform.position.y + my_rect.rect.height > 0;
+        //             print(transform.position.y + " " + Screen.height);
+        //             break;
+        //         case HIDE_TYPE.HIDE_TOP:
+        //             mustHide = transform.position.y - my_rect.rect.height < Screen.height;
+        //             break;
+        //         case HIDE_TYPE.HIDE_LEFT:
+        //             mustHide = transform.position.x + my_rect.rect.width > 0;
+        //             break;
+        //         case HIDE_TYPE.HIDE_RIGHT:
+        //             mustHide = transform.position.x - my_rect.rect.width < Screen.width;
+        //             break;
+        //     }
+        // } else {
+        //     switch (hide_type) {
+        //         case HIDE_TYPE.HIDE_BOTTOM:
+        //             mustShow = transform.position.y + my_rect.rect.height > 0;
+        //             break;
+        //         case HIDE_TYPE.HIDE_TOP:
+        //             mustShow = transform.position.y + my_rect.rect.height < Screen.height;
+        //             break;
+        //         case HIDE_TYPE.HIDE_LEFT:
+        //             mustShow = transform.position.x > 0;
+        //             break;
+        //         case HIDE_TYPE.HIDE_RIGHT:
+        //             mustShow = transform.position.x < Screen.width;
+        //             break;
+        //     }
+        // }
+        // if (mustHide) {
+        //     transform.Translate(-translation_hide_to_show * (Time.deltaTime / speed));
+        // } else if (mustShow) {
+        //     transform.Translate(translation_hide_to_show * (Time.deltaTime / speed));
+        // }
     }
 
     public void setHidden(bool _hidden) {

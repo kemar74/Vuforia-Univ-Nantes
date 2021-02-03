@@ -29,9 +29,10 @@ public class TouchInput : MonoBehaviour
     public Button btnRedo; // Button to redo last selection
     public Button btnIncompleteShapeError; // Button to click if the program thinks you did an incomplete shape on selection but you want to keep it
     public CanvasRenderer incompleteShapeErrorContainer; // The container with the error message, so that we can hide it when we dont need it
+    public GameObject linePrefab; 
+    public GameObject currentLine;
 
-    public GameObject linePrefab;
-    private GameObject line;
+    public LineRenderer lineRendered;
     // Start is called before the first frame update
     void Start()
     {
@@ -62,8 +63,13 @@ public class TouchInput : MonoBehaviour
 
         }
         
-        // line = GameObject.Instantiate(linePrefab, camera.transform);
-        // line.transform.Translate(new Vector3(0, 0, GameObject.Find("BackgroundPlane").transform.localPosition.z), camera.transform);
+        currentLine = Instantiate(linePrefab, Vector3.zero, Quaternion.identity);
+        //currentLine.transform.parent = btnSelect.transform;
+        lineRendered = currentLine.GetComponent<LineRenderer>();
+        lineRendered.startColor = Color.white;
+        lineRendered.endColor = Color.white;
+        Material whiteDiffuseMat = new Material(Shader.Find("Unlit/Texture"));
+        lineRendered.material = whiteDiffuseMat;
     }
 
     // Change the isSelecting value and enable/disable the buttons
@@ -125,6 +131,7 @@ public class TouchInput : MonoBehaviour
                 }
             } else {
                 currentSelectionPath.Add(new Vector2(Input.mousePosition.x, Input.mousePosition.y));
+                
             }
         }
 
@@ -286,6 +293,14 @@ public class TouchInput : MonoBehaviour
         //     vec3pos.Add((Vector3) pos);
         // }
         // line.GetComponent<LineRenderer>().SetPositions(vec3pos.ToArray());
+        
+        // Vector3 pos = camera.ScreenToViewportPoint(Input.mousePosition);
+        Vector2 diffScreenGUI = new Vector2(Screen.width/2, Screen.height/2);
+        lineRendered.positionCount = currentSelectionPath.Count ;
+        if (lineRendered.positionCount > 0) {
+            lineRendered.SetPosition(lineRendered.positionCount -1, new Vector3( currentSelectionPath[currentSelectionPath.Count - 1].x - diffScreenGUI.x,  currentSelectionPath[currentSelectionPath.Count - 1].y - diffScreenGUI.y, 1200f));                
+        // lineRendered.SetPosition(lineRendered.positionCount -1, pos); //new Vector3( currentSelectionPath[currentSelectionPath.Count - 1].x - diffScreenGUI.x,  currentSelectionPath[currentSelectionPath.Count - 1].y - diffScreenGUI.y, 1024f));        
+        }        
     }
 
     // Remove duplicate points in the selected list
